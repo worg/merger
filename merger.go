@@ -1,15 +1,15 @@
 // Copyright (c) 2014 Hiram Jerónimo Pérez worg{at}linuxmail[dot]org
-//
+
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-//
+
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-//
+
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -29,10 +29,14 @@ import (
 )
 
 var (
+	// ErrDistinctType occurs when trying to merge structs of distinct type
 	ErrDistinctType = errors.New(`dst and src must be of the same type`)
-	ErrNoPtr        = errors.New(`src must be a pointer to a struct`)
+	// ErrNoPtr occurs when no struct pointer is sent as destination
+	ErrNoPtr = errors.New(`src must be a pointer to a struct`)
+	// ErrNilArguments occurs on receiving nil as arguments
 	ErrNilArguments = errors.New(`no nil values allowed`)
-	ErrUnknown      = errors.New(`could not merge`)
+	// ErrUnknown occurs if the type can't be merged
+	ErrUnknown = errors.New(`could not merge`)
 )
 
 // Merge sets zero values from dst to non zero values of src

@@ -28,7 +28,7 @@ import (
 
 type (
 	simpleT struct {
-		Id      int
+		ID      int
 		Address string
 	}
 
