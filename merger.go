@@ -23,7 +23,6 @@ package merger
 
 import (
 	"errors"
-	"log"
 	"reflect"
 	"strings"
 )
@@ -106,7 +105,6 @@ func merge(dst, src reflect.Value) (err error) {
 				break
 			}
 			if src.CanAddr() && src.IsNil() {
-
 				src = getValue(src)
 				if err := merge(dst, src); err != nil {
 					return err
@@ -131,7 +129,6 @@ func mergeSlice(dst, src reflect.Value) (res reflect.Value) {
 	}
 
 	res = dst
-	log.Printf("\n\n\nRES: %+v\n\n\n", res.Interface())
 	return
 }
 
