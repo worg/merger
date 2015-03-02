@@ -58,8 +58,8 @@ func Merge(dst, src interface{}) error {
 	vDst := getValue(dst)
 
 	for i := 0; i < vSrc.NumField(); i++ {
-		sf := vSrc.Field(i)
 		df := vDst.Field(i)
+		sf := vSrc.Field(i)
 		if err := merge(df, sf); err != nil {
 			return err
 		}
@@ -68,6 +68,7 @@ func Merge(dst, src interface{}) error {
 	return nil
 }
 
+// merge merges two reflect values based upon their kinds
 func merge(dst, src reflect.Value) (err error) {
 	if dst.CanSet() && !isZero(src) {
 		switch dst.Kind() {
@@ -86,16 +87,26 @@ func merge(dst, src reflect.Value) (err error) {
 			}
 		case reflect.Slice:
 			dst.Set(mergeSlice(dst, src))
-		case reflect.Map:
-			dst.Set(mergeMap(dst, src))
 		case reflect.Struct:
+			// handle structs with IsZero method
+			if fnZero, ok := dst.Type().MethodByName(`IsZero`); ok {
+				res := fnZero.Func.Call([]reflect.Value{dst})
+				if len(res) > 0 {
+					if v, isok := res[0].Interface().(bool); isok && v {
+						dst.Set(src)
+					}
+				}
+			}
+
 			for i := 0; i < src.NumField(); i++ {
-				sf := src.Field(i)
 				df := dst.Field(i)
+				sf := src.Field(i)
 				if err := merge(df, sf); err != nil {
 					return err
 				}
 			}
+		case reflect.Map:
+			dst.Set(mergeMap(dst, src))
 		case reflect.Ptr:
 			// defer pointers
 			if !dst.IsNil() {
@@ -117,6 +128,8 @@ func merge(dst, src reflect.Value) (err error) {
 	return
 }
 
+// mergeSlice merges two slices only if dst slice fields are zero and
+// src fields are nonzero
 func mergeSlice(dst, src reflect.Value) (res reflect.Value) {
 	for i := 0; i < src.Len(); i++ {
 		if i >= dst.Len() {
@@ -132,6 +145,8 @@ func mergeSlice(dst, src reflect.Value) (res reflect.Value) {
 	return
 }
 
+// mergeMap traverses a map and merges the nonzero values of
+// src into dst
 func mergeMap(dst, src reflect.Value) (res reflect.Value) {
 	if dst.IsNil() {
 		dst = reflect.MakeMap(dst.Type())
@@ -148,10 +163,13 @@ func mergeMap(dst, src reflect.Value) (res reflect.Value) {
 	return dst
 }
 
+// typesMatch typechecks two interfaces
 func typesMatch(a, b interface{}) bool {
 	return strings.TrimPrefix(reflect.TypeOf(a).String(), "*") == strings.TrimPrefix(reflect.TypeOf(b).String(), "*")
 }
 
+// getValue returns a reflect.Value from an interface
+// deferring pointers if needed
 func getValue(t interface{}) (rslt reflect.Value) {
 	rslt = reflect.ValueOf(t)
 
@@ -162,33 +180,34 @@ func getValue(t interface{}) (rslt reflect.Value) {
 	return
 }
 
+// isStructPtr determines if a value is a struct pointer
 func isStructPtr(v interface{}) bool {
 	t := reflect.TypeOf(v)
 	return t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct
 }
 
+// isZero is mostly stolen from encoding/json package's isEmptyValue function
+// determines if a value has the zero value of its type
 func isZero(v reflect.Value) bool {
-	if !v.CanSet() {
-		return false
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr, reflect.Func:
+		return v.IsNil()
+	case reflect.Struct:
+		zero := reflect.Zero(v.Type()).Interface()
+		return reflect.DeepEqual(v.Interface(), zero)
+	default:
+		zero := reflect.Zero(v.Type())
+		return v.Interface() == zero.Interface()
 	}
 
-	switch v.Kind() {
-	case reflect.Func, reflect.Map, reflect.Slice:
-		return v.IsNil()
-	case reflect.Array:
-		t := true
-		for i := 0; i < v.Len(); i++ {
-			t = t && isZero(v.Index(i))
-		}
-		return t
-	case reflect.Struct:
-		t := true
-		for i := 0; i < v.NumField(); i++ {
-			t = t && isZero(v.Field(i))
-		}
-		return t
-	}
-	// Compare other types directly:
-	t := reflect.Zero(v.Type())
-	return v.Interface() == t.Interface()
 }

@@ -35,6 +35,7 @@ type (
 	complexT struct {
 		simpleT
 		Name string
+		pr   int
 	}
 
 	pointerT struct {
@@ -62,13 +63,14 @@ type (
 var (
 	orders      = make(map[string]interface{})
 	dSimple     = simpleT{20, `Springfield`}
-	dComplex    = complexT{simpleT{10, `Springfield`}, `Homer`}
+	dComplex    = complexT{dSimple, `Homer`, 1}
 	eComplex    = complexT{Name: `Homer`}
 	dPointer    = pointerT{&simpleT{5, `Springfield`}}
 	ePointer    = pointerT{nil}
 	dComplexPtr = complexPtr{&complexT{
 		simpleT{1, `Springfield`},
 		`Homer`,
+		1,
 	},
 		666,
 	}
@@ -77,7 +79,9 @@ var (
 	eSlice      = sliceT{}
 	dMap        = mapT{orders}
 	eMap        = mapT{nil}
-	dTime       = timeT{time.Now()}
+	tnow        = time.Now()
+	tzero       time.Time
+	dTime       = timeT{tnow}
 	eTime       = timeT{}
 )
 
@@ -96,7 +100,7 @@ func TestNil(t *testing.T) {
 }
 
 func TestStructPtr(t *testing.T) {
-	a := simpleT{Id: 666}
+	a := simpleT{ID: 666}
 
 	if err := Merge(a, dSimple); err != ErrNoPtr {
 		t.Error(`Failed to check for struct pointer`)
@@ -104,7 +108,7 @@ func TestStructPtr(t *testing.T) {
 }
 
 func TestEqualType(t *testing.T) {
-	a := simpleT{Id: 000}
+	a := simpleT{ID: 000}
 
 	if err := Merge(&a, dPointer); err != ErrDistinctType {
 		t.Error(`Failed to check for type equality`)
@@ -112,7 +116,7 @@ func TestEqualType(t *testing.T) {
 }
 
 func TestSimple(t *testing.T) {
-	a := simpleT{Id: 2}
+	a := simpleT{ID: 2}
 
 	if err := Merge(&a, dSimple); err != nil {
 		t.Error(err)
@@ -122,7 +126,7 @@ func TestSimple(t *testing.T) {
 		t.Error(`Failed to merge fields`)
 	}
 
-	if a.Id != 2 {
+	if a.ID != 2 {
 		t.Error(`Failed to merge fields`)
 	}
 }
@@ -138,13 +142,13 @@ func TestSimpleEmpty(t *testing.T) {
 		t.Error(`Failed to merge fields`)
 	}
 
-	if a.Id != 0 {
+	if a.ID != 0 {
 		t.Error(`Failed to merge fields`)
 	}
 }
 
 func TestComplex(t *testing.T) {
-	a := complexT{simpleT{Id: 100}, `John`}
+	a := complexT{simpleT{ID: 100}, `John`, 0}
 	if err := Merge(&a, dComplex); err != nil {
 		t.Error(err)
 	}
@@ -154,16 +158,20 @@ func TestComplex(t *testing.T) {
 	}
 
 	if a.Address != `Springfield` {
+		t.Error(`Failed to merge fields, expected Springfield got `, a.Address)
+	}
+
+	if a.ID != 100 {
 		t.Error(`Failed to merge fields`)
 	}
 
-	if a.Id != 100 {
-		t.Error(`Failed to merge fields`)
+	if a.pr != 0 {
+		t.Error(0, ` expected, got`, a.pr)
 	}
 }
 
 func TestComplexEmpty(t *testing.T) {
-	a := complexT{simpleT{Id: 200}, `Jane`}
+	a := complexT{simpleT{ID: 200}, `Jane`, 2}
 	if err := Merge(&a, eComplex); err != nil {
 		t.Error(err)
 	}
@@ -176,14 +184,14 @@ func TestComplexEmpty(t *testing.T) {
 		t.Error(`Failed to merge fields`)
 	}
 
-	if a.Id != 200 {
+	if a.ID != 200 {
 		t.Error(`Failed to merge fields`)
 	}
 }
 
 func TestComplexPtr(t *testing.T) {
 	a := complexPtr{
-		&complexT{simpleT{Id: 600}, `Doe`},
+		&complexT{simpleT{ID: 600}, `Doe`, 2},
 		0,
 	}
 
@@ -191,7 +199,7 @@ func TestComplexPtr(t *testing.T) {
 		t.Error(err)
 	}
 
-	if a.complexT.Id != 600 {
+	if a.complexT.ID != 600 {
 		t.Error(`Failed to merge fields`)
 	}
 
@@ -212,7 +220,7 @@ func TestComplexPtr(t *testing.T) {
 		t.Error(err)
 	}
 
-	if a.complexT.Id != 1 {
+	if a.complexT.ID != 1 {
 		t.Error(`Failed to merge fields`)
 	}
 
@@ -223,6 +231,42 @@ func TestComplexPtr(t *testing.T) {
 	if a.Location != 90 {
 		t.Error(`Failed to merge fields`)
 	}
+}
+
+func TestTime(t *testing.T) {
+	ntime := time.Now().Add(time.Hour)
+	nt := timeT{}
+	if err := Merge(&nt, dTime); err != nil {
+		t.Error(`Failed to merge time field `, err)
+	}
+
+	if nt.Now != tnow {
+		t.Error(tnow, `expected, got `, nt.Now)
+	}
+
+	// t.Log(tnow, `expected, got `, nt.Now)
+
+	nt.Now = tzero
+	if err := Merge(&nt, timeT{ntime}); err != nil {
+		t.Error(`Failed to merge time field `, err)
+	}
+
+	if nt.Now != ntime {
+		t.Error(ntime, ` expected, got `, nt.Now)
+	}
+
+	// t.Log(ntime, `expected, got `, nt.Now)
+
+	if err := Merge(&nt, dTime); err != nil {
+		t.Error(`Failed to merge time field `, err)
+	}
+
+	if nt.Now != ntime {
+		t.Error(tnow, `expected, got `, nt.Now)
+	}
+
+	// t.Log(ntime, `expected, got `, nt.Now)
+
 }
 
 /*
