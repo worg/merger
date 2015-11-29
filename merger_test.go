@@ -61,7 +61,10 @@ type (
 )
 
 var (
-	orders      = make(map[string]interface{})
+	orders = map[string]interface{}{
+		`coffee`:    1,
+		`milkBrand`: `Happy Cow`,
+	}
 	dSimple     = simpleT{20, `Springfield`}
 	dComplex    = complexT{dSimple, `Homer`, 1}
 	eComplex    = complexT{Name: `Homer`}
@@ -266,7 +269,22 @@ func TestTime(t *testing.T) {
 	}
 
 	// t.Log(ntime, `expected, got `, nt.Now)
+}
 
+func TestMap(t *testing.T) {
+	nmap := mapT{map[string]interface{}{
+		`coffee`:  3,
+		`veggies`: `lots`,
+	},
+	}
+
+	if err := Merge(&nmap, dMap); err != nil {
+		t.Error(`Failed to merge map `, err)
+	}
+
+	if nmap.Orders[`coffee`] != 3 {
+		t.Errorf(`Failed to merge map expected %d, got %d`, 3, nmap.Orders[`coffee`])
+	}
 }
 
 /*
