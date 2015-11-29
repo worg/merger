@@ -1,4 +1,4 @@
-// Copyright (c) 2014 Hiram Jerónimo Pérez worg{at}linuxmail[dot]org
+// Copyright (c) 2015 Hiram Jerónimo Pérez https://worg.xyz
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@ var (
 	// ErrDistinctType occurs when trying to merge structs of distinct type
 	ErrDistinctType = errors.New(`dst and src must be of the same type`)
 	// ErrNoPtr occurs when no struct pointer is sent as destination
-	ErrNoPtr = errors.New(`src must be a pointer to a struct`)
+	ErrNoPtr = errors.New(`dst must be a pointer to a struct`)
 	// ErrNilArguments occurs on receiving nil as arguments
 	ErrNilArguments = errors.New(`no nil values allowed`)
 	// ErrUnknown occurs if the type can't be merged
@@ -72,11 +72,16 @@ func Merge(dst, src interface{}) error {
 func merge(dst, src reflect.Value) (err error) {
 	if dst.CanSet() && !isZero(src) {
 		switch dst.Kind() {
-		case reflect.Int, reflect.Int64, reflect.Float32, reflect.Float64, reflect.String, reflect.Bool:
+		// base types
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+			reflect.Float32, reflect.Float64, reflect.String, reflect.Bool:
 			if isZero(dst) {
 				switch dst.Kind() {
-				case reflect.Int, reflect.Int64:
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 					dst.SetInt(src.Int())
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					dst.SetUint(src.Uint())
 				case reflect.Float32, reflect.Float64:
 					dst.SetFloat(src.Float())
 				case reflect.String:
@@ -88,7 +93,7 @@ func merge(dst, src reflect.Value) (err error) {
 		case reflect.Slice:
 			dst.Set(mergeSlice(dst, src))
 		case reflect.Struct:
-			// handle structs with IsZero method
+			// handle structs with IsZero method [ie time.Time]
 			if fnZero, ok := dst.Type().MethodByName(`IsZero`); ok {
 				res := fnZero.Func.Call([]reflect.Value{dst})
 				if len(res) > 0 {
@@ -206,6 +211,10 @@ func isZero(v reflect.Value) bool {
 		zero := reflect.Zero(v.Type()).Interface()
 		return reflect.DeepEqual(v.Interface(), zero)
 	default:
+		if !v.IsValid() {
+			return true
+		}
+
 		zero := reflect.Zero(v.Type())
 		return v.Interface() == zero.Interface()
 	}
